@@ -1,0 +1,210 @@
+
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<title>Solar Ecosystem v7 – Heartbeat Cycle Simulator</title>
+<style>
+body{margin:0;background:#03040b;color:white;font-family:Arial}
+#panel{position:fixed;top:10px;left:10px;background:#111827;padding:12px;border-radius:10px;font-size:13px;width:260px}
+canvas{display:block;margin:auto;background:#02030a}
+label{font-size:12px}
+</style>
+</head>
+<body>
+
+<div id="panel">
+<b>Heartbeat Ecosystem</b><br><br>
+
+Agents <input id="agents" type="range" min="200" max="3000" value="1200"><br>
+Grid <input id="grid" type="range" min="120" max="350" value="240"><br>
+Speed <input id="cycles" type="range" min="1" max="40" value="10"><br><br>
+
+Cycle length <input id="cycle" type="number" value="1200"><br>
+Growth % <input id="growth" type="number" value="70"><br>
+Pulse % <input id="pulse" type="number" value="10"><br>
+Recovery % <input id="recovery" type="number" value="20"><br><br>
+
+<button onclick="start()">Start</button>
+<button onclick="pause()">Pause</button>
+<button onclick="reset()">Reset</button>
+
+<div id="stats"></div>
+</div>
+
+<canvas id="c" width="1200" height="850"></canvas>
+
+<script>
+
+const canvas=document.getElementById("c")
+const ctx=canvas.getContext("2d")
+
+let agents=[]
+let running=false
+let gridSize=240
+let tick=0
+
+function rand(a,b){return a+Math.random()*(b-a)}
+
+function createAgents(n){
+
+agents=[]
+
+for(let i=0;i<n;i++){
+
+agents.push({
+x:Math.random()*gridSize,
+y:Math.random()*gridSize,
+energy:50,
+age:0,
+alive:true
+})
+
+}
+
+}
+
+function solar(x,y){
+
+let cx=gridSize/2
+let cy=gridSize/2
+let d=Math.hypot(x-cx,y-cy)
+
+return Math.max(0,1-(d/(gridSize*0.7)))
+
+}
+
+function step(){
+
+let cycleLen=parseInt(document.getElementById("cycle").value)
+let growth=parseFloat(document.getElementById("growth").value)/100
+let pulse=parseFloat(document.getElementById("pulse").value)/100
+
+let phase=(tick % cycleLen)/cycleLen
+
+let basal=0.10
+let gain=0.7
+let reproduction=0.006
+
+if(phase>growth && phase<(growth+pulse)){
+
+basal=0.25
+reproduction=0.002
+
+for(let a of agents){
+
+if(a.alive) a.energy*=0.7
+
+}
+
+}
+
+if(phase>(growth+pulse)){
+
+basal=0.05
+gain=0.9
+reproduction=0.004
+
+}
+
+for(let a of agents){
+
+if(!a.alive)continue
+
+a.age++
+a.energy-=basal
+a.energy+=solar(a.x,a.y)*gain
+
+a.x+=rand(-1,1)
+a.y+=rand(-1,1)
+
+if(a.x<0)a.x=0
+if(a.y<0)a.y=0
+if(a.x>gridSize)a.x=gridSize
+if(a.y>gridSize)a.y=gridSize
+
+if(a.energy>75 && Math.random()<reproduction){
+
+agents.push({
+x:a.x+rand(-2,2),
+y:a.y+rand(-2,2),
+energy:40,
+age:0,
+alive:true
+})
+
+a.energy-=30
+
+}
+
+if(a.energy<=0 || a.age>900){
+
+a.alive=false
+
+}
+
+}
+
+tick++
+
+}
+
+function draw(){
+
+ctx.fillStyle="rgba(0,0,0,0.2)"
+ctx.fillRect(0,0,canvas.width,canvas.height)
+
+for(let a of agents){
+
+if(!a.alive)continue
+
+let px=a.x/gridSize*canvas.width
+let py=a.y/gridSize*canvas.height
+
+ctx.beginPath()
+ctx.fillStyle="white"
+ctx.arc(px,py,1.4,0,Math.PI*2)
+ctx.fill()
+
+}
+
+let alive=agents.filter(a=>a.alive).length
+
+document.getElementById("stats").innerText=
+"agents:"+alive+" tick:"+tick
+
+}
+
+function loop(){
+
+if(!running)return
+
+let cycles=parseInt(document.getElementById("cycles").value)
+
+for(let i=0;i<cycles;i++)step()
+
+draw()
+
+requestAnimationFrame(loop)
+
+}
+
+function start(){running=true;loop()}
+function pause(){running=false}
+
+function reset(){
+
+running=false
+gridSize=parseInt(document.getElementById("grid").value)
+createAgents(parseInt(document.getElementById("agents").value))
+ctx.clearRect(0,0,canvas.width,canvas.height)
+draw()
+
+}
+
+reset()
+
+</script>
+
+</body>
+</html>
